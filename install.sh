@@ -39,18 +39,23 @@ gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic"
 
-# Dock settings
-gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
-gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
-gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
+# Check if Dash-to-Dock schema exists before applying settings
+if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
+  echo "⚙️ Configuring Dash to Dock..."
+  gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
+  gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
+  gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
 
-# Dock favorites
-gsettings set org.gnome.shell favorite-apps "[
-  'firefox.desktop',
-  'onlyoffice-desktopeditors.desktop',
-  'org.gnome.Nautilus.desktop',
-  'org.gnome.Terminal.desktop'
-]"
+  # Dock favorites
+  gsettings set org.gnome.shell favorite-apps "[
+    'firefox.desktop',
+    'onlyoffice-desktopeditors.desktop',
+    'org.gnome.Nautilus.desktop',
+    'org.gnome.Terminal.desktop'
+  ]"
+else
+  echo "⚠️ Dash to Dock schema not found. Skipping dock customization."
+fi
 
 # Wallpaper
 mkdir -p ~/Pictures/Wallpapers
