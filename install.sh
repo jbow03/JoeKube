@@ -3,8 +3,23 @@ set -e
 
 echo "🚀 Starting JoeKube Cloud Edition Setup..."
 
-# --- 1. Security & User Setup ---
+# --- 1. Initial Prompts ---
 read -p "Enter new admin username: " NEWUSER
+
+read -p "Disable root SSH login? (y/n): " DISABLEROOT
+
+read -s -p "Enter VNC password: " VNCPASS
+echo
+read -s -p "Confirm VNC password: " VNCPASS2
+echo
+if [ "$VNCPASS" != "$VNCPASS2" ]; then
+    echo "❌ Passwords do not match. Exiting."
+    exit 1
+fi
+
+echo "✅ Inputs collected. Proceeding with setup..."
+
+# --- 2. Create Admin User ---
 adduser $NEWUSER
 usermod -aG sudo $NEWUSER
 
@@ -17,23 +32,28 @@ if [ -d /root/.ssh ]; then
     chmod 600 /home/$NEWUSER/.ssh/authorized_keys
 fi
 
-# Optional: Disable root login
-read -p "Disable root SSH login? (y/n): " DISABLEROOT
+# Disable root login if selected
 if [ "$DISABLEROOT" = "y" ]; then
     sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
     systemctl restart sshd
     echo "✅ Root SSH login disabled."
 fi
 
-# --- Switch to new user for desktop setup ---
+# Prepare VNC password for new user
+mkdir -p /home/$NEWUSER/.vnc
+echo -e "${VNCPASS}\n${VNCPASS}" | vncpasswd -f > /home/$NEWUSER/.vnc/passwd
+chown -R $NEWUSER:$NEWUSER /home/$NEWUSER/.vnc
+chmod 600 /home/$NEWUSER/.vnc/passwd
+
+# --- 3. Switch to new user for desktop + apps install ---
 sudo -u $NEWUSER bash <<'EOF_USER'
 
-echo "🔄 Running desktop setup as $USER..."
+echo "🔄 Running desktop & apps install as $USER..."
 
-# --- 2. System Update ---
+# --- System Update ---
 sudo apt update && sudo apt upgrade -y
 
-# --- Detect RAM ---
+# --- Detect RAM for Desktop Choice ---
 TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
 echo "💾 Detected RAM: $TOTAL_RAM_MB MB"
 
@@ -47,20 +67,13 @@ else
     sudo apt install xfce4 xfce4-goodies -y
 fi
 
-# --- 3. Install TigerVNC ---
+# --- Install TigerVNC ---
 if ! command -v vncserver &>/dev/null; then
     echo "🖥 Installing TigerVNC..."
     sudo apt install tigervnc-standalone-server -y
 fi
 
-# --- Configure VNC Password ---
-mkdir -p ~/.vnc
-if [ ! -f ~/.vnc/passwd ]; then
-    echo "🔑 Set your VNC password (will not echo):"
-    vncpasswd
-fi
-
-# --- Configure xstartup based on desktop ---
+# --- Configure xstartup for Desktop Type ---
 if [ "$DESKTOP_ENV" = "GNOME" ]; then
     cat << 'EOGNOME' > ~/.vnc/xstartup
 #!/bin/bash
@@ -77,9 +90,9 @@ EOXFCE
 fi
 chmod +x ~/.vnc/xstartup
 
-# --- 4. Theme & Appearance ---
+# --- Theme & Appearance ---
 echo "🎨 Installing Nordic + Papirus-Dark + Fira Code..."
-sudo apt install -y gtk2-engines-murrine gtk2-engines-pixbuf fonts-firacode papirus-icon-theme
+sudo apt install -y gtk2-engines-murrine gtk2-engines-pixbuf fonts-firacode papirus-icon-theme git
 if [ ! -d "/usr/share/themes/Nordic" ]; then
     sudo git clone https://github.com/EliverLara/Nordic /usr/share/themes/Nordic
 fi
@@ -92,7 +105,7 @@ elif [ "$DESKTOP_ENV" = "XFCE" ]; then
     xfconf-query -c xsettings -p /Net/IconThemeName -s "Papirus-Dark"
 fi
 
-# --- 5. Apps ---
+# --- Apps ---
 echo "🛠 Installing Apps..."
 if ! command -v desktopeditors &>/dev/null; then
     wget -qO /tmp/onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
@@ -115,7 +128,7 @@ if ! command -v wg &>/dev/null; then
     sudo apt install -y wireguard
 fi
 
-# --- 6. TigerVNC Service ---
+# --- VNC Service ---
 SERVICE_FILE="/etc/systemd/system/tigervnc@.service"
 if [ ! -f "$SERVICE_FILE" ]; then
     sudo tee "$SERVICE_FILE" > /dev/null <<EOVNCSVC
@@ -142,15 +155,15 @@ fi
 
 EOF_USER
 
-# --- 7. Firewall ---
+# --- Firewall ---
 sudo apt install -y ufw
 sudo ufw allow 5901/tcp
 sudo ufw reload
 
-# --- 8. Output & Reboot Prompt ---
+# --- Final Output ---
 IP=$(hostname -I | awk '{print $1}')
 echo "✅ JoeKube Cloud Edition setup complete!"
-echo "👉 Connect with Jump Desktop: ${IP}:5901"
+echo "👉 Connect with Jump Desktop: ${IP}:5901 (User: $NEWUSER)"
 read -p "Reboot now? (y/n): " REBOOT
 if [ "$REBOOT" = "y" ]; then
     sudo reboot
