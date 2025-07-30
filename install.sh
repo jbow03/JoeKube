@@ -50,20 +50,29 @@ gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic" || true
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
 
-# Ubuntu Dock settings for 25.04
-echo "⚙️ Configuring Ubuntu Dock..."
-if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock-Ubuntu"; then
-    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu dock-position 'BOTTOM'
-    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu dash-max-icon-size 48
-    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu extend-height false
+# Ubuntu Dock settings for 25.04 (auto-detect schema)
+echo "⚙️ Configuring Dock..."
+if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
+    echo "✔ Found Dash-to-Dock schema"
+    SCHEMA="org.gnome.shell.extensions.dash-to-dock"
+elif gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock-Ubuntu"; then
+    echo "✔ Found Ubuntu Dock schema"
+    SCHEMA="org.gnome.shell.extensions.dash-to-dock-Ubuntu"
+else
+    echo "⚠️ No Dock schema found. Skipping Dock customization."
+    SCHEMA=""
+fi
+
+if [ -n "$SCHEMA" ]; then
+    gsettings set $SCHEMA dock-position 'BOTTOM'
+    gsettings set $SCHEMA dash-max-icon-size 48
+    gsettings set $SCHEMA extend-height false
     gsettings set org.gnome.shell favorite-apps "[
       'firefox.desktop',
       'onlyoffice-desktopeditors.desktop',
       'org.gnome.Nautilus.desktop',
       'org.gnome.Terminal.desktop'
     ]"
-else
-    echo "⚠️ Ubuntu Dock schema not found. Skipping Dock customization."
 fi
 
 # Wallpaper
@@ -135,4 +144,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – Dock Fixed) install complete! Reboot to enjoy your configured environment."
