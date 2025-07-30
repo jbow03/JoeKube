@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – VNC Fixed)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – Username VNC Fix)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -83,7 +83,7 @@ fi
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
 gsettings set org.gnome.desktop.background picture-options 'zoom' || true
 
-# --- 6. VNC Setup ---
+# --- 6. VNC Setup (Fixed for correct username) ---
 echo "🖥 Configuring VNC (always on)..."
 sudo apt install -y tigervnc-standalone-server tigervnc-common
 
@@ -104,32 +104,34 @@ exec /usr/bin/gnome-session --session=ubuntu &
 EOF
 chmod +x ~/.vnc/xstartup
 
-# Systemd service for GNOME VNC
-if [ ! -f /etc/systemd/system/vncserver@.service ]; then
-    sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
+# Corrected systemd service for current username
+SERVICE_FILE="/etc/systemd/system/vncserver@${USER}.service"
+if [ ! -f "$SERVICE_FILE" ]; then
+    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
-Description=Start TigerVNC server at startup for %i
+Description=Start TigerVNC server at startup for ${USER}
 After=syslog.target network.target
 
 [Service]
 Type=forking
-User=%i
+User=${USER}
 PAMName=login
-Environment=XDG_RUNTIME_DIR=/run/user/%U
-PIDFile=/home/%i/.vnc/%H:%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24 -fg
-ExecStop=/usr/bin/vncserver -kill :%i
+Environment=XDG_RUNTIME_DIR=/run/user/$(id -u)
+PIDFile=/home/${USER}/.vnc/%H:1.pid
+ExecStartPre=-/usr/bin/vncserver -kill :1 > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24 -fg
+ExecStop=/usr/bin/vncserver -kill :1
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
     sudo systemctl daemon-reload
-    sudo systemctl enable vncserver@1.service
-    sudo systemctl start vncserver@1.service
+    sudo systemctl enable vncserver@${USER}.service
+    sudo systemctl start vncserver@${USER}.service
 else
-    echo "ℹ️ VNC service already configured. Restarting..."
-    sudo systemctl restart vncserver@1.service
+    echo "ℹ️ VNC service for ${USER} already exists. Restarting..."
+    sudo systemctl restart vncserver@${USER}.service
 fi
 
 # --- 7. Aliases ---
@@ -147,4 +149,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – VNC Fixed) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – Username VNC Fix) install complete! Reboot to enjoy your configured environment."
