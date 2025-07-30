@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – Username VNC Fix)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – VNC Username Fix)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -17,7 +17,6 @@ sudo apt install -y \
 # --- 3. Appearance & UI ---
 echo "🎨 Installing Nordic theme..."
 
-# Safe clone function
 safe_clone() {
     local repo_url=$1
     local dest_dir=$2
@@ -45,12 +44,11 @@ fi
 # --- 5. GNOME Customization ---
 echo "🎨 Applying GNOME settings..."
 
-# Dark theme
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic" || true
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
 
-# Ubuntu Dock settings for 25.04 (auto-detect schema)
+# Ubuntu Dock settings (auto-detect schema)
 echo "⚙️ Configuring Dock..."
 if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
     echo "✔ Found Dash-to-Dock schema"
@@ -83,7 +81,7 @@ fi
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
 gsettings set org.gnome.desktop.background picture-options 'zoom' || true
 
-# --- 6. VNC Setup (Fixed for correct username) ---
+# --- 6. VNC Setup (Correct username service) ---
 echo "🖥 Configuring VNC (always on)..."
 sudo apt install -y tigervnc-standalone-server tigervnc-common
 
@@ -104,8 +102,9 @@ exec /usr/bin/gnome-session --session=ubuntu &
 EOF
 chmod +x ~/.vnc/xstartup
 
-# Corrected systemd service for current username
-SERVICE_FILE="/etc/systemd/system/vncserver@${USER}.service"
+# Create systemd service for current username
+SERVICE_NAME="vncserver@${USER}.service"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 if [ ! -f "$SERVICE_FILE" ]; then
     sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
@@ -127,11 +126,11 @@ WantedBy=multi-user.target
 EOF
 
     sudo systemctl daemon-reload
-    sudo systemctl enable vncserver@${USER}.service
-    sudo systemctl start vncserver@${USER}.service
+    sudo systemctl enable "${SERVICE_NAME}"
+    sudo systemctl start "${SERVICE_NAME}"
 else
     echo "ℹ️ VNC service for ${USER} already exists. Restarting..."
-    sudo systemctl restart vncserver@${USER}.service
+    sudo systemctl restart "${SERVICE_NAME}"
 fi
 
 # --- 7. Aliases ---
@@ -149,4 +148,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – Username VNC Fix) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – VNC Username Fix) install complete! Reboot to enjoy your configured environment."
