@@ -13,17 +13,15 @@ echo "🛠 Installing core tools..."
 sudo apt install -y \
   curl wget git unzip zip build-essential software-properties-common \
   gnome-tweaks gnome-shell-extensions gnome-shell-extension-manager \
-  fonts-firacode
+  fonts-firacode dconf-cli
 
 # --- 3. Appearance & UI ---
 echo "🎨 Setting up GNOME theme & extensions..."
-sudo apt install -y \
-  dconf-cli
-# Nord Theme example (change to Catppuccin if you prefer)
+# Nordic Theme (change to Catppuccin if preferred)
 git clone https://github.com/EliverLara/Nordic.git /tmp/Nordic
 mkdir -p ~/.themes && cp -r /tmp/Nordic ~/.themes/
 
-# Dash to Dock
+# Enable Dash to Dock if installed
 gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
 
 # --- 4. Terminal (Zsh + Oh My Zsh) ---
@@ -48,12 +46,11 @@ sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting
 # --- 5. Dev & Automation Tools ---
 echo "⚙️ Installing dev tools..."
 sudo apt install -y python3-pip python3-venv nodejs npm docker.io docker-compose make
-
-# Optional: Add yourself to Docker group
 sudo usermod -aG docker $USER
 
-# --- 6. Productivity & AI ---
+# --- 6. Productivity & AI Tools ---
 echo "🧠 Installing productivity tools..."
+
 # Obsidian
 wget -qO obsidian.deb https://github.com/obsidianmd/obsidian-releases/releases/latest/download/obsidian_amd64.deb
 sudo apt install -y ./obsidian.deb && rm obsidian.deb
@@ -66,29 +63,15 @@ sudo apt install -y ./vscode.deb && rm vscode.deb
 sudo add-apt-repository ppa:agornostal/ulauncher -y
 sudo apt update && sudo apt install -y ulauncher
 
-# Tailscale
-curl -fsSL https://tailscale.com/install.sh | sh
+# OnlyOffice Desktop
+wget -qO onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
+sudo apt install -y ./onlyoffice.deb && rm onlyoffice.deb
 
-# --- 7. Dotfiles ---
-echo "📁 Adding JoeKube dotfiles..."
-cat << 'EOF' >> ~/.zshrc
-
-# Aliases
-alias ll='ls -lh'
-alias la='ls -lha'
-alias gs='git status'
-alias update='sudo apt update && sudo apt upgrade -y'
-
-# Path additions
-export PATH=$PATH:$HOME/bin
-
-# --- 9. GNOME Customization ---
+# --- 7. GNOME Customization ---
 echo "🎨 Applying GNOME customization..."
 
 # Set dark theme
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-
-# Set Nordic theme for GTK and Shell
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic"
 
@@ -97,7 +80,7 @@ gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
 gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
 gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
 
-# Dock favorites (adjust order as needed)
+# Dock favorites
 gsettings set org.gnome.shell favorite-apps "[
   'firefox.desktop',
   'code.desktop',
@@ -107,39 +90,23 @@ gsettings set org.gnome.shell favorite-apps "[
   'org.gnome.Terminal.desktop'
 ]"
 
-# Wallpaper (simple dark image)
+# Wallpaper
 mkdir -p ~/Pictures/Wallpapers
 wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg"
 gsettings set org.gnome.desktop.background picture-options 'zoom'
 
-# Keyboard shortcuts
-gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "[
-  '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/',
-  '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/'
-]"
-
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name 'Launch Terminal'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command 'gnome-terminal'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ binding '<Super>t'
-
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ name 'Launch Obsidian'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ command 'obsidian'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ binding '<Super>o'
-
-# --- 10. VNC Setup ---
+# --- 8. VNC Setup ---
 echo "🖥 Setting up VNC Server..."
 
-# Install TigerVNC
 sudo apt install -y tigervnc-standalone-server tigervnc-common
 
-# Create VNC password
+# VNC password
 mkdir -p ~/.vnc
-echo "Setting default VNC password..."
-(echo "yourVNCpassword"; echo "yourVNCpassword") | vncpasswd -f > ~/.vnc/passwd
+(echo "ChangeMeVNC"; echo "ChangeMeVNC") | vncpasswd -f > ~/.vnc/passwd
 chmod 600 ~/.vnc/passwd
 
-# Configure GNOME session for VNC
+# GNOME session for VNC
 cat << 'EOF' > ~/.vnc/xstartup
 #!/bin/bash
 unset SESSION_MANAGER
@@ -148,7 +115,7 @@ exec /etc/X11/xinit/xinitrc
 EOF
 chmod +x ~/.vnc/xstartup
 
-# Create systemd service (listen on all interfaces)
+# Systemd service for VNC
 sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
 [Unit]
 Description=Start TigerVNC server at startup for %i
@@ -167,12 +134,20 @@ ExecStop=/usr/bin/vncserver -kill :%i
 WantedBy=multi-user.target
 EOF
 
-# Enable VNC for display :1
 sudo systemctl daemon-reload
 sudo systemctl enable vncserver@1.service
 sudo systemctl start vncserver@1.service
 
+# --- 9. Aliases & Dotfiles ---
+echo "📁 Adding JoeKube aliases..."
+cat << 'EOF' >> ~/.zshrc
+
+# Aliases
+alias ll='ls -lh'
+alias la='ls -lha'
+alias gs='git status'
+alias update='sudo apt update && sudo apt upgrade -y'
 
 EOF
 
-echo "✅ JoeKube installation complete! Restart or log out to apply all changes."
+echo "✅ JoeKube installation complete! Reboot to apply all changes."
