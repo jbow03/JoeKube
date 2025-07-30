@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Bulletproof Idempotent Edition)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Optimized)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -17,7 +17,7 @@ sudo apt install -y \
 # --- 3. Appearance & UI ---
 echo "🎨 Installing Nordic theme..."
 
-# Function for safe clone
+# Safe clone function
 safe_clone() {
     local repo_url=$1
     local dest_dir=$2
@@ -32,11 +32,6 @@ safe_clone "https://github.com/EliverLara/Nordic.git" "/tmp/Nordic"
 
 mkdir -p ~/.themes
 cp -rf /tmp/Nordic ~/.themes/Nordic
-
-# Enable Dash to Dock safely
-sudo apt install -y gnome-shell-extension-dash-to-dock
-gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
-killall -3 gnome-shell || true
 
 # --- 4. Productivity Tools (OnlyOffice) ---
 echo "📝 Installing OnlyOffice Desktop..."
@@ -55,12 +50,12 @@ gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic" || true
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
 
-# Dock settings if schema exists
-if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
-    echo "⚙️ Configuring Dash to Dock..."
-    gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
-    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
-    gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
+# Ubuntu Dock settings for 25.04
+echo "⚙️ Configuring Ubuntu Dock..."
+if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock-Ubuntu"; then
+    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu dock-position 'BOTTOM'
+    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu dash-max-icon-size 48
+    gsettings set org.gnome.shell.extensions.dash-to-dock-Ubuntu extend-height false
     gsettings set org.gnome.shell favorite-apps "[
       'firefox.desktop',
       'onlyoffice-desktopeditors.desktop',
@@ -68,10 +63,10 @@ if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; t
       'org.gnome.Terminal.desktop'
     ]"
 else
-    echo "⚠️ Dash to Dock schema not found. Skipping dock customization."
+    echo "⚠️ Ubuntu Dock schema not found. Skipping Dock customization."
 fi
 
-# Wallpaper (replace if missing)
+# Wallpaper
 mkdir -p ~/Pictures/Wallpapers
 if [ ! -f ~/Pictures/Wallpapers/joekube-dark.jpg ]; then
     wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
@@ -99,7 +94,6 @@ exec /etc/X11/xinit/xinitrc
 EOF
 chmod +x ~/.vnc/xstartup
 
-# VNC service
 if [ ! -f /etc/systemd/system/vncserver@.service ]; then
     sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
 [Unit]
@@ -122,7 +116,7 @@ EOF
     sudo systemctl enable vncserver@1.service
     sudo systemctl start vncserver@1.service
 else
-    echo "ℹ️ VNC service already configured. Restarting service..."
+    echo "ℹ️ VNC service already configured. Restarting..."
     sudo systemctl restart vncserver@1.service
 fi
 
@@ -141,4 +135,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Optimized) install complete! Reboot to enjoy your configured environment."
