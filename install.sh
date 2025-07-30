@@ -127,6 +127,52 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/or
 gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ command 'obsidian'
 gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ binding '<Super>o'
 
+# --- 10. VNC Setup ---
+echo "🖥 Setting up VNC Server..."
+
+# Install TigerVNC
+sudo apt install -y tigervnc-standalone-server tigervnc-common
+
+# Create VNC password
+mkdir -p ~/.vnc
+echo "Setting default VNC password..."
+(echo "yourVNCpassword"; echo "yourVNCpassword") | vncpasswd -f > ~/.vnc/passwd
+chmod 600 ~/.vnc/passwd
+
+# Configure GNOME session for VNC
+cat << 'EOF' > ~/.vnc/xstartup
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+exec /etc/X11/xinit/xinitrc
+EOF
+chmod +x ~/.vnc/xstartup
+
+# Create systemd service (listen on all interfaces)
+sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
+[Unit]
+Description=Start TigerVNC server at startup for %i
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=%i
+PAMName=login
+PIDFile=/home/%i/.vnc/%H:%i.pid
+ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24
+ExecStop=/usr/bin/vncserver -kill :%i
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable VNC for display :1
+sudo systemctl daemon-reload
+sudo systemctl enable vncserver@1.service
+sudo systemctl start vncserver@1.service
+
+
 EOF
 
 echo "✅ JoeKube installation complete! Restart or log out to apply all changes."
