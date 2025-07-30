@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-
 set -e
 
-echo "🚀 Starting JoeKube Lean (Idempotent Edition)..."
+echo "🚀 Starting JoeKube Lean (Bulletproof Idempotent Edition)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -17,8 +16,20 @@ sudo apt install -y \
 
 # --- 3. Appearance & UI ---
 echo "🎨 Installing Nordic theme..."
-rm -rf /tmp/Nordic
-git clone https://github.com/EliverLara/Nordic.git /tmp/Nordic
+
+# Function for safe clone
+safe_clone() {
+    local repo_url=$1
+    local dest_dir=$2
+    if [ -d "$dest_dir" ]; then
+        echo "⚠️ $dest_dir exists. Removing..."
+        rm -rf "$dest_dir" || mv "$dest_dir" "${dest_dir}-backup-$(date +%s)"
+    fi
+    git clone "$repo_url" "$dest_dir"
+}
+
+safe_clone "https://github.com/EliverLara/Nordic.git" "/tmp/Nordic"
+
 mkdir -p ~/.themes
 cp -rf /tmp/Nordic ~/.themes/Nordic
 
