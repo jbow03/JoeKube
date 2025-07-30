@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Optimized)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -135,5 +135,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Optimized) install complete! Reboot to enjoy your configured environment."
-
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final) install complete! Reboot to enjoy your configured environment."
