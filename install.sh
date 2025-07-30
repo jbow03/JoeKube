@@ -2,75 +2,34 @@
 
 set -e
 
-echo "🚀 Starting JoeKube bootstrap..."
+echo "🚀 Starting JoeKube bootstrap (Lean Edition)..."
 
-# --- 1. Update & Upgrade ---
+# --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
 sudo apt update && sudo apt upgrade -y
 
-# --- 2. Core System Tools ---
-echo "🛠 Installing core tools..."
+# --- 2. Core Tools ---
+echo "🛠 Installing core utilities..."
 sudo apt install -y \
   curl wget git unzip zip build-essential software-properties-common \
   gnome-tweaks gnome-shell-extensions gnome-shell-extension-manager \
   fonts-firacode dconf-cli
 
 # --- 3. Appearance & UI ---
-echo "🎨 Setting up GNOME theme & extensions..."
-# Nordic Theme (change to Catppuccin if preferred)
+echo "🎨 Installing Nordic theme..."
 git clone https://github.com/EliverLara/Nordic.git /tmp/Nordic
 mkdir -p ~/.themes && cp -r /tmp/Nordic ~/.themes/
-
-# Enable Dash to Dock if installed
 gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
 
-# --- 4. Terminal (Zsh + Oh My Zsh) ---
-echo "💻 Installing Zsh & Oh My Zsh..."
-sudo apt install -y zsh fzf ripgrep bat
-chsh -s $(which zsh)
-
-echo "Installing Oh My Zsh..."
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-
-# Powerlevel10k
-echo "Installing Powerlevel10k..."
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
-sed -i 's/ZSH_THEME=".*"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
-
-# Plugins
-echo "Adding Zsh plugins..."
-git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
-sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' ~/.zshrc
-
-# --- 5. Dev & Automation Tools ---
-echo "⚙️ Installing dev tools..."
-sudo apt install -y python3-pip python3-venv nodejs npm docker.io docker-compose make
-sudo usermod -aG docker $USER
-
-# --- 6. Productivity & AI Tools ---
-echo "🧠 Installing productivity tools..."
-
-# Obsidian
-wget -qO obsidian.deb https://github.com/obsidianmd/obsidian-releases/releases/latest/download/obsidian_amd64.deb
-sudo apt install -y ./obsidian.deb && rm obsidian.deb
-
-# VS Code
-wget -qO vscode.deb "https://update.code.visualstudio.com/latest/linux-deb-x64/stable"
-sudo apt install -y ./vscode.deb && rm vscode.deb
-
-# Ulauncher
-sudo add-apt-repository ppa:agornostal/ulauncher -y
-sudo apt update && sudo apt install -y ulauncher
-
-# OnlyOffice Desktop
+# --- 4. Productivity Tools (OnlyOffice) ---
+echo "📝 Installing OnlyOffice Desktop..."
 wget -qO onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
 sudo apt install -y ./onlyoffice.deb && rm onlyoffice.deb
 
-# --- 7. GNOME Customization ---
-echo "🎨 Applying GNOME customization..."
+# --- 5. GNOME Customization ---
+echo "🎨 Applying GNOME settings..."
 
-# Set dark theme
+# Dark theme
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
 gsettings set org.gnome.shell.extensions.user-theme name "Nordic"
@@ -83,10 +42,8 @@ gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
 # Dock favorites
 gsettings set org.gnome.shell favorite-apps "[
   'firefox.desktop',
-  'code.desktop',
   'onlyoffice-desktopeditors.desktop',
   'org.gnome.Nautilus.desktop',
-  'obsidian.desktop',
   'org.gnome.Terminal.desktop'
 ]"
 
@@ -96,9 +53,8 @@ wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg"
 gsettings set org.gnome.desktop.background picture-options 'zoom'
 
-# --- 8. VNC Setup ---
-echo "🖥 Setting up VNC Server..."
-
+# --- 6. VNC Setup ---
+echo "🖥 Configuring VNC (always on)..."
 sudo apt install -y tigervnc-standalone-server tigervnc-common
 
 # VNC password
@@ -138,16 +94,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable vncserver@1.service
 sudo systemctl start vncserver@1.service
 
-# --- 9. Aliases & Dotfiles ---
+# --- 7. Aliases ---
 echo "📁 Adding JoeKube aliases..."
-cat << 'EOF' >> ~/.zshrc
+cat << 'EOF' >> ~/.bashrc
 
 # Aliases
 alias ll='ls -lh'
 alias la='ls -lha'
-alias gs='git status'
 alias update='sudo apt update && sudo apt upgrade -y'
 
 EOF
 
-echo "✅ JoeKube installation complete! Reboot to apply all changes."
+echo "✅ JoeKube Lean install complete! Reboot to enjoy your configured environment."
