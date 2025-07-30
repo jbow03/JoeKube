@@ -1,137 +1,157 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – x11vnc Mac Ready + Password Prompt)..."
+echo "🚀 Starting JoeKube Cloud Edition Setup..."
 
-# --- 1. System Update & Upgrade ---
-echo "📦 Updating system..."
+# --- 1. Security & User Setup ---
+read -p "Enter new admin username: " NEWUSER
+adduser $NEWUSER
+usermod -aG sudo $NEWUSER
+
+# Copy SSH keys from root if they exist
+if [ -d /root/.ssh ]; then
+    mkdir -p /home/$NEWUSER/.ssh
+    cp -r /root/.ssh/* /home/$NEWUSER/.ssh/
+    chown -R $NEWUSER:$NEWUSER /home/$NEWUSER/.ssh
+    chmod 700 /home/$NEWUSER/.ssh
+    chmod 600 /home/$NEWUSER/.ssh/authorized_keys
+fi
+
+# Optional: Disable root login
+read -p "Disable root SSH login? (y/n): " DISABLEROOT
+if [ "$DISABLEROOT" = "y" ]; then
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+    systemctl restart sshd
+    echo "✅ Root SSH login disabled."
+fi
+
+# --- Switch to new user for desktop setup ---
+sudo -u $NEWUSER bash <<'EOF_USER'
+
+echo "🔄 Running desktop setup as $USER..."
+
+# --- 2. System Update ---
 sudo apt update && sudo apt upgrade -y
 
-# --- 2. Core Tools ---
-echo "🛠 Installing core utilities..."
-sudo apt install -y \
-  curl wget git unzip zip build-essential software-properties-common \
-  gnome-tweaks gnome-shell-extensions gnome-shell-extension-manager \
-  fonts-firacode dconf-cli ufw
+# --- Detect RAM ---
+TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+echo "💾 Detected RAM: $TOTAL_RAM_MB MB"
 
-# --- 3. Appearance & UI ---
-echo "🎨 Installing Nordic theme..."
+if [ $TOTAL_RAM_MB -ge 2000 ]; then
+    DESKTOP_ENV="GNOME"
+    echo "🖥 Installing Ubuntu Desktop (GNOME)..."
+    sudo apt install ubuntu-desktop gdm3 -y
+else
+    DESKTOP_ENV="XFCE"
+    echo "🖥 Installing XFCE Desktop..."
+    sudo apt install xfce4 xfce4-goodies -y
+fi
 
-safe_clone() {
-    local repo_url=$1
-    local dest_dir=$2
-    if [ -d "$dest_dir" ]; then
-        echo "⚠️ $dest_dir exists. Removing..."
-        rm -rf "$dest_dir" || mv "$dest_dir" "${dest_dir}-backup-$(date +%s)"
-    fi
-    git clone "$repo_url" "$dest_dir"
-}
+# --- 3. Install TigerVNC ---
+if ! command -v vncserver &>/dev/null; then
+    echo "🖥 Installing TigerVNC..."
+    sudo apt install tigervnc-standalone-server -y
+fi
 
-safe_clone "https://github.com/EliverLara/Nordic.git" "/tmp/Nordic"
+# --- Configure VNC Password ---
+mkdir -p ~/.vnc
+if [ ! -f ~/.vnc/passwd ]; then
+    echo "🔑 Set your VNC password (will not echo):"
+    vncpasswd
+fi
 
-mkdir -p ~/.themes
-cp -rf /tmp/Nordic ~/.themes/Nordic
+# --- Configure xstartup based on desktop ---
+if [ "$DESKTOP_ENV" = "GNOME" ]; then
+    cat << 'EOGNOME' > ~/.vnc/xstartup
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+exec gnome-session --session=ubuntu &
+EOGNOME
+else
+    cat << 'EOXFCE' > ~/.vnc/xstartup
+#!/bin/bash
+xrdb $HOME/.Xresources
+startxfce4 &
+EOXFCE
+fi
+chmod +x ~/.vnc/xstartup
 
-# --- 4. Productivity Tools (OnlyOffice) ---
-echo "📝 Installing OnlyOffice Desktop..."
+# --- 4. Theme & Appearance ---
+echo "🎨 Installing Nordic + Papirus-Dark + Fira Code..."
+sudo apt install -y gtk2-engines-murrine gtk2-engines-pixbuf fonts-firacode papirus-icon-theme
+if [ ! -d "/usr/share/themes/Nordic" ]; then
+    sudo git clone https://github.com/EliverLara/Nordic /usr/share/themes/Nordic
+fi
+
+if [ "$DESKTOP_ENV" = "GNOME" ]; then
+    gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
+    gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
+elif [ "$DESKTOP_ENV" = "XFCE" ]; then
+    xfconf-query -c xsettings -p /Net/ThemeName -s "Nordic"
+    xfconf-query -c xsettings -p /Net/IconThemeName -s "Papirus-Dark"
+fi
+
+# --- 5. Apps ---
+echo "🛠 Installing Apps..."
 if ! command -v desktopeditors &>/dev/null; then
     wget -qO /tmp/onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
     sudo apt install -y /tmp/onlyoffice.deb && rm /tmp/onlyoffice.deb
-else
-    echo "ℹ️ OnlyOffice already installed. Skipping."
 fi
 
-# --- 5. GNOME Customization ---
-echo "🎨 Applying GNOME settings..."
-
-gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
-gsettings set org.gnome.desktop.interface gtk-theme "Nordic" || true
-gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
-
-# Ubuntu Dock settings (auto-detect schema)
-echo "⚙️ Configuring Dock..."
-if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
-    SCHEMA="org.gnome.shell.extensions.dash-to-dock"
-elif gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock-Ubuntu"; then
-    SCHEMA="org.gnome.shell.extensions.dash-to-dock-Ubuntu"
-else
-    SCHEMA=""
+if ! command -v google-chrome &>/dev/null; then
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+    sudo apt update
+    if sudo apt install -y google-chrome-stable; then
+        echo "✅ Chrome installed."
+    else
+        echo "⚠️ Chrome failed, installing Chromium..."
+        sudo apt install -y chromium-browser
+    fi
 fi
 
-if [ -n "$SCHEMA" ]; then
-    gsettings set $SCHEMA dock-position 'BOTTOM'
-    gsettings set $SCHEMA dash-max-icon-size 48
-    gsettings set $SCHEMA extend-height false
-    gsettings set org.gnome.shell favorite-apps "[
-      'firefox.desktop',
-      'onlyoffice-desktopeditors.desktop',
-      'org.gnome.Nautilus.desktop',
-      'org.gnome.Terminal.desktop'
-    ]"
+if ! command -v wg &>/dev/null; then
+    sudo apt install -y wireguard
 fi
 
-# Wallpaper
-mkdir -p ~/Pictures/Wallpapers
-if [ ! -f ~/Pictures/Wallpapers/joekube-dark.jpg ]; then
-    wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
-fi
-gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
-gsettings set org.gnome.desktop.background picture-options 'zoom' || true
-
-# --- 6. VNC Setup (x11vnc - Mac Ready + password prompt) ---
-echo "🖥 Configuring x11vnc (always on for Mac Jump Desktop)..."
-sudo apt install -y x11vnc
-
-# Prompt for password
-read -s -p "Enter VNC password: " VNC_PASS
-echo
-mkdir -p ~/.vnc
-echo "$VNC_PASS" | x11vnc -storepasswd stdin ~/.vnc/passwd
-
-# Create x11vnc systemd service
-SERVICE_FILE="/etc/systemd/system/x11vnc.service"
+# --- 6. TigerVNC Service ---
+SERVICE_FILE="/etc/systemd/system/tigervnc@.service"
 if [ ! -f "$SERVICE_FILE" ]; then
-    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+    sudo tee "$SERVICE_FILE" > /dev/null <<EOVNCSVC
 [Unit]
-Description=Start x11vnc at startup (Mac Ready)
-After=display-manager.service
+Description=Start TigerVNC server at startup for %i
+After=network.target
 
 [Service]
-Type=simple
-ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -noxdamage -repeat -rfbauth /home/${USER}/.vnc/passwd -rfbport 5900 -shared -display :0 -listen 0.0.0.0
-User=${USER}
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/${USER}/.Xauthority
+Type=forking
+User=%i
+PAMName=login
+PIDFile=/home/%i/.vnc/%H:1.pid
+ExecStartPre=-/usr/bin/vncserver -kill :1 > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24
+ExecStop=/usr/bin/vncserver -kill :1
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
+EOVNCSVC
     sudo systemctl daemon-reload
-    sudo systemctl enable x11vnc.service
-    sudo systemctl start x11vnc.service
-else
-    echo "ℹ️ x11vnc service already exists. Restarting..."
-    sudo systemctl restart x11vnc.service
+    sudo systemctl enable tigervnc@$USER.service
+    sudo systemctl start tigervnc@$USER.service
 fi
 
-# Open firewall for VNC
-sudo ufw allow 5900/tcp
+EOF_USER
+
+# --- 7. Firewall ---
+sudo apt install -y ufw
+sudo ufw allow 5901/tcp
 sudo ufw reload
 
-# --- 7. Aliases ---
-echo "📁 Adding JoeKube aliases..."
-if ! grep -q "alias ll=" ~/.bashrc; then
-cat << 'EOF' >> ~/.bashrc
-
-# JoeKube Aliases
-alias ll='ls -lh'
-alias la='ls -lha'
-alias update='sudo apt update && sudo apt upgrade -y'
-
-EOF
-else
-    echo "ℹ️ Aliases already exist. Skipping."
+# --- 8. Output & Reboot Prompt ---
+IP=$(hostname -I | awk '{print $1}')
+echo "✅ JoeKube Cloud Edition setup complete!"
+echo "👉 Connect with Jump Desktop: ${IP}:5901"
+read -p "Reboot now? (y/n): " REBOOT
+if [ "$REBOOT" = "y" ]; then
+    sudo reboot
 fi
-
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – x11vnc Mac Ready + Password Prompt) install complete! Reboot to enjoy your configured environment."
