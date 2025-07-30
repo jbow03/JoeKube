@@ -82,6 +82,51 @@ alias update='sudo apt update && sudo apt upgrade -y'
 # Path additions
 export PATH=$PATH:$HOME/bin
 
+# --- 9. GNOME Customization ---
+echo "🎨 Applying GNOME customization..."
+
+# Set dark theme
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+
+# Set Nordic theme for GTK and Shell
+gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
+gsettings set org.gnome.shell.extensions.user-theme name "Nordic"
+
+# Dock settings
+gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
+gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
+gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
+
+# Dock favorites (adjust order as needed)
+gsettings set org.gnome.shell favorite-apps "[
+  'firefox.desktop',
+  'code.desktop',
+  'onlyoffice-desktopeditors.desktop',
+  'org.gnome.Nautilus.desktop',
+  'obsidian.desktop',
+  'org.gnome.Terminal.desktop'
+]"
+
+# Wallpaper (simple dark image)
+mkdir -p ~/Pictures/Wallpapers
+wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
+gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg"
+gsettings set org.gnome.desktop.background picture-options 'zoom'
+
+# Keyboard shortcuts
+gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "[
+  '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/',
+  '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/'
+]"
+
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name 'Launch Terminal'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command 'gnome-terminal'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ binding '<Super>t'
+
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ name 'Launch Obsidian'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ command 'obsidian'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ binding '<Super>o'
+
 EOF
 
 echo "✅ JoeKube installation complete! Restart or log out to apply all changes."
