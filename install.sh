@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – VNC Username Fix)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – x11vnc Edition)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -81,56 +81,41 @@ fi
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
 gsettings set org.gnome.desktop.background picture-options 'zoom' || true
 
-# --- 6. VNC Setup (Correct username service) ---
-echo "🖥 Configuring VNC (always on)..."
-sudo apt install -y tigervnc-standalone-server tigervnc-common
+# --- 6. VNC Setup (x11vnc - simple, always on) ---
+echo "🖥 Configuring x11vnc (always on)..."
+sudo apt install -y x11vnc
 
 mkdir -p ~/.vnc
 if [ ! -f ~/.vnc/passwd ]; then
-    (echo "ChangeMeVNC"; echo "ChangeMeVNC") | vncpasswd -f > ~/.vnc/passwd
-    chmod 600 ~/.vnc/passwd
+    echo "ChangeMeVNC" | x11vnc -storepasswd stdin ~/.vnc/passwd
 else
-    echo "ℹ️ VNC password already set. Skipping."
+    echo "ℹ️ x11vnc password already set. Skipping."
 fi
 
-# GNOME-compliant VNC startup
-cat << 'EOF' > ~/.vnc/xstartup
-#!/bin/bash
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-exec /usr/bin/gnome-session --session=ubuntu &
-EOF
-chmod +x ~/.vnc/xstartup
-
-# Create systemd service for current username
-SERVICE_NAME="vncserver@${USER}.service"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
+SERVICE_FILE="/etc/systemd/system/x11vnc.service"
 if [ ! -f "$SERVICE_FILE" ]; then
     sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
-Description=Start TigerVNC server at startup for ${USER}
-After=syslog.target network.target
+Description=Start x11vnc at startup
+After=display-manager.service
 
 [Service]
-Type=forking
+Type=simple
+ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -noxdamage -repeat -rfbauth /home/${USER}/.vnc/passwd -rfbport 5900 -shared -display :0
 User=${USER}
-PAMName=login
-Environment=XDG_RUNTIME_DIR=/run/user/$(id -u)
-PIDFile=/home/${USER}/.vnc/%H:1.pid
-ExecStartPre=-/usr/bin/vncserver -kill :1 > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24 -fg
-ExecStop=/usr/bin/vncserver -kill :1
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/${USER}/.Xauthority
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     sudo systemctl daemon-reload
-    sudo systemctl enable "${SERVICE_NAME}"
-    sudo systemctl start "${SERVICE_NAME}"
+    sudo systemctl enable x11vnc.service
+    sudo systemctl start x11vnc.service
 else
-    echo "ℹ️ VNC service for ${USER} already exists. Restarting..."
-    sudo systemctl restart "${SERVICE_NAME}"
+    echo "ℹ️ x11vnc service already exists. Restarting..."
+    sudo systemctl restart x11vnc.service
 fi
 
 # --- 7. Aliases ---
@@ -148,4 +133,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – VNC Username Fix) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – x11vnc Edition) install complete! Reboot to enjoy your configured environment."
