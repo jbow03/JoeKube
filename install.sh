@@ -29,6 +29,11 @@ sudo apt install -y ./onlyoffice.deb && rm onlyoffice.deb
 # --- 5. GNOME Customization ---
 echo "🎨 Applying GNOME settings..."
 
+# Ensure Dash to Dock exists
+sudo apt install -y gnome-shell-extension-dash-to-dock
+gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
+killall -3 gnome-shell || true
+
 # Dark theme
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
