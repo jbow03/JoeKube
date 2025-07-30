@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – x11vnc Edition)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – x11vnc Mac Ready + Password Prompt)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -12,7 +12,7 @@ echo "🛠 Installing core utilities..."
 sudo apt install -y \
   curl wget git unzip zip build-essential software-properties-common \
   gnome-tweaks gnome-shell-extensions gnome-shell-extension-manager \
-  fonts-firacode dconf-cli
+  fonts-firacode dconf-cli ufw
 
 # --- 3. Appearance & UI ---
 echo "🎨 Installing Nordic theme..."
@@ -51,13 +51,10 @@ gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
 # Ubuntu Dock settings (auto-detect schema)
 echo "⚙️ Configuring Dock..."
 if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
-    echo "✔ Found Dash-to-Dock schema"
     SCHEMA="org.gnome.shell.extensions.dash-to-dock"
 elif gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock-Ubuntu"; then
-    echo "✔ Found Ubuntu Dock schema"
     SCHEMA="org.gnome.shell.extensions.dash-to-dock-Ubuntu"
 else
-    echo "⚠️ No Dock schema found. Skipping Dock customization."
     SCHEMA=""
 fi
 
@@ -81,27 +78,27 @@ fi
 gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
 gsettings set org.gnome.desktop.background picture-options 'zoom' || true
 
-# --- 6. VNC Setup (x11vnc - simple, always on) ---
-echo "🖥 Configuring x11vnc (always on)..."
+# --- 6. VNC Setup (x11vnc - Mac Ready + password prompt) ---
+echo "🖥 Configuring x11vnc (always on for Mac Jump Desktop)..."
 sudo apt install -y x11vnc
 
+# Prompt for password
+read -s -p "Enter VNC password: " VNC_PASS
+echo
 mkdir -p ~/.vnc
-if [ ! -f ~/.vnc/passwd ]; then
-    echo "ChangeMeVNC" | x11vnc -storepasswd stdin ~/.vnc/passwd
-else
-    echo "ℹ️ x11vnc password already set. Skipping."
-fi
+echo "$VNC_PASS" | x11vnc -storepasswd stdin ~/.vnc/passwd
 
+# Create x11vnc systemd service
 SERVICE_FILE="/etc/systemd/system/x11vnc.service"
 if [ ! -f "$SERVICE_FILE" ]; then
     sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
-Description=Start x11vnc at startup
+Description=Start x11vnc at startup (Mac Ready)
 After=display-manager.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -noxdamage -repeat -rfbauth /home/${USER}/.vnc/passwd -rfbport 5900 -shared -display :0
+ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -noxdamage -repeat -rfbauth /home/${USER}/.vnc/passwd -rfbport 5900 -shared -display :0 -listen 0.0.0.0
 User=${USER}
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/${USER}/.Xauthority
@@ -118,6 +115,10 @@ else
     sudo systemctl restart x11vnc.service
 fi
 
+# Open firewall for VNC
+sudo ufw allow 5900/tcp
+sudo ufw reload
+
 # --- 7. Aliases ---
 echo "📁 Adding JoeKube aliases..."
 if ! grep -q "alias ll=" ~/.bashrc; then
@@ -133,4 +134,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – x11vnc Edition) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – x11vnc Mac Ready + Password Prompt) install complete! Reboot to enjoy your configured environment."
