@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Starting JoeKube bootstrap (Lean Edition)..."
+echo "🚀 Starting JoeKube Lean (Idempotent Edition)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -17,62 +17,69 @@ sudo apt install -y \
 
 # --- 3. Appearance & UI ---
 echo "🎨 Installing Nordic theme..."
+rm -rf /tmp/Nordic
 git clone https://github.com/EliverLara/Nordic.git /tmp/Nordic
-mkdir -p ~/.themes && cp -r /tmp/Nordic ~/.themes/
-gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
+mkdir -p ~/.themes
+cp -rf /tmp/Nordic ~/.themes/Nordic
 
-# --- 4. Productivity Tools (OnlyOffice) ---
-echo "📝 Installing OnlyOffice Desktop..."
-wget -qO onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
-sudo apt install -y ./onlyoffice.deb && rm onlyoffice.deb
-
-# --- 5. GNOME Customization ---
-echo "🎨 Applying GNOME settings..."
-
-# Ensure Dash to Dock exists
+# Enable Dash to Dock safely
 sudo apt install -y gnome-shell-extension-dash-to-dock
 gnome-extensions enable dash-to-dock@micxgx.gmail.com || true
 killall -3 gnome-shell || true
 
-# Dark theme
-gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-gsettings set org.gnome.desktop.interface gtk-theme "Nordic"
-gsettings set org.gnome.shell.extensions.user-theme name "Nordic"
-
-# Check if Dash-to-Dock schema exists before applying settings
-if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
-  echo "⚙️ Configuring Dash to Dock..."
-  gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
-  gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
-  gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
-
-  # Dock favorites
-  gsettings set org.gnome.shell favorite-apps "[
-    'firefox.desktop',
-    'onlyoffice-desktopeditors.desktop',
-    'org.gnome.Nautilus.desktop',
-    'org.gnome.Terminal.desktop'
-  ]"
+# --- 4. Productivity Tools (OnlyOffice) ---
+echo "📝 Installing OnlyOffice Desktop..."
+if ! command -v desktopeditors &>/dev/null; then
+    wget -qO /tmp/onlyoffice.deb https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb
+    sudo apt install -y /tmp/onlyoffice.deb && rm /tmp/onlyoffice.deb
 else
-  echo "⚠️ Dash to Dock schema not found. Skipping dock customization."
+    echo "ℹ️ OnlyOffice already installed. Skipping."
 fi
 
-# Wallpaper
+# --- 5. GNOME Customization ---
+echo "🎨 Applying GNOME settings..."
+
+# Dark theme
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
+gsettings set org.gnome.desktop.interface gtk-theme "Nordic" || true
+gsettings set org.gnome.shell.extensions.user-theme name "Nordic" || true
+
+# Dock settings if schema exists
+if gsettings list-schemas | grep -q "org.gnome.shell.extensions.dash-to-dock"; then
+    echo "⚙️ Configuring Dash to Dock..."
+    gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
+    gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 48
+    gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
+    gsettings set org.gnome.shell favorite-apps "[
+      'firefox.desktop',
+      'onlyoffice-desktopeditors.desktop',
+      'org.gnome.Nautilus.desktop',
+      'org.gnome.Terminal.desktop'
+    ]"
+else
+    echo "⚠️ Dash to Dock schema not found. Skipping dock customization."
+fi
+
+# Wallpaper (replace if missing)
 mkdir -p ~/Pictures/Wallpapers
-wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
-gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg"
-gsettings set org.gnome.desktop.background picture-options 'zoom'
+if [ ! -f ~/Pictures/Wallpapers/joekube-dark.jpg ]; then
+    wget -qO ~/Pictures/Wallpapers/joekube-dark.jpg https://i.imgur.com/Hz5uPzv.jpg
+fi
+gsettings set org.gnome.desktop.background picture-uri "file://$HOME/Pictures/Wallpapers/joekube-dark.jpg" || true
+gsettings set org.gnome.desktop.background picture-options 'zoom' || true
 
 # --- 6. VNC Setup ---
 echo "🖥 Configuring VNC (always on)..."
 sudo apt install -y tigervnc-standalone-server tigervnc-common
 
-# VNC password
 mkdir -p ~/.vnc
-(echo "ChangeMeVNC"; echo "ChangeMeVNC") | vncpasswd -f > ~/.vnc/passwd
-chmod 600 ~/.vnc/passwd
+if [ ! -f ~/.vnc/passwd ]; then
+    (echo "ChangeMeVNC"; echo "ChangeMeVNC") | vncpasswd -f > ~/.vnc/passwd
+    chmod 600 ~/.vnc/passwd
+else
+    echo "ℹ️ VNC password already set. Skipping."
+fi
 
-# GNOME session for VNC
 cat << 'EOF' > ~/.vnc/xstartup
 #!/bin/bash
 unset SESSION_MANAGER
@@ -81,8 +88,9 @@ exec /etc/X11/xinit/xinitrc
 EOF
 chmod +x ~/.vnc/xstartup
 
-# Systemd service for VNC
-sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
+# VNC service
+if [ ! -f /etc/systemd/system/vncserver@.service ]; then
+    sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
 [Unit]
 Description=Start TigerVNC server at startup for %i
 After=syslog.target network.target
@@ -99,20 +107,27 @@ ExecStop=/usr/bin/vncserver -kill :%i
 [Install]
 WantedBy=multi-user.target
 EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable vncserver@1.service
-sudo systemctl start vncserver@1.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable vncserver@1.service
+    sudo systemctl start vncserver@1.service
+else
+    echo "ℹ️ VNC service already configured. Restarting service..."
+    sudo systemctl restart vncserver@1.service
+fi
 
 # --- 7. Aliases ---
 echo "📁 Adding JoeKube aliases..."
+if ! grep -q "alias ll=" ~/.bashrc; then
 cat << 'EOF' >> ~/.bashrc
 
-# Aliases
+# JoeKube Aliases
 alias ll='ls -lh'
 alias la='ls -lha'
 alias update='sudo apt update && sudo apt upgrade -y'
 
 EOF
+else
+    echo "ℹ️ Aliases already exist. Skipping."
+fi
 
 echo "✅ JoeKube Lean install complete! Reboot to enjoy your configured environment."
