@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final)..."
+echo "🚀 Starting JoeKube Lean (Ubuntu 25.04 Final – VNC Fixed)..."
 
 # --- 1. System Update & Upgrade ---
 echo "📦 Updating system..."
@@ -95,14 +95,16 @@ else
     echo "ℹ️ VNC password already set. Skipping."
 fi
 
+# GNOME-compliant VNC startup
 cat << 'EOF' > ~/.vnc/xstartup
 #!/bin/bash
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-exec /etc/X11/xinit/xinitrc
+exec /usr/bin/gnome-session --session=ubuntu &
 EOF
 chmod +x ~/.vnc/xstartup
 
+# Systemd service for GNOME VNC
 if [ ! -f /etc/systemd/system/vncserver@.service ]; then
     sudo tee /etc/systemd/system/vncserver@.service > /dev/null <<EOF
 [Unit]
@@ -113,9 +115,10 @@ After=syslog.target network.target
 Type=forking
 User=%i
 PAMName=login
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 PIDFile=/home/%i/.vnc/%H:%i.pid
 ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24
+ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24 -fg
 ExecStop=/usr/bin/vncserver -kill :%i
 
 [Install]
@@ -144,4 +147,4 @@ else
     echo "ℹ️ Aliases already exist. Skipping."
 fi
 
-echo "✅ JoeKube Lean (Ubuntu 25.04 Final – Dock Fixed) install complete! Reboot to enjoy your configured environment."
+echo "✅ JoeKube Lean (Ubuntu 25.04 Final – VNC Fixed) install complete! Reboot to enjoy your configured environment."
